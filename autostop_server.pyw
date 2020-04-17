@@ -36,7 +36,7 @@ if __name__ == '__main__':
             try:
                 data = connection.recv(1024).decode()
                 if data != '':
-                    thread = threading.Thread(target=countdown, args=(data))
+                    thread = threading.Thread(target=countdown, args=(data,))
                     thread.start()
                     break
             except:
