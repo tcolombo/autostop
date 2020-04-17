@@ -1,0 +1,110 @@
+#!/home/tristan/.pyenv/shims/python3
+
+from typing import Tuple
+import sys
+from collections import OrderedDict
+from PyInquirer import prompt
+import socket
+
+
+IP = ('192.168.1.24', '192.168.1.15')
+PORT = 10000
+
+HOSTNAMES = OrderedDict()
+HOSTNAMES['Darkshadow'] = IP[0]
+HOSTNAMES['Link'] = IP[1]
+
+DURATION = OrderedDict()
+DURATION['5mn'] = 5 
+DURATION['10mn'] = 10
+DURATION['30mn'] = 30
+DURATION['1h'] = 60
+DURATION['1h30mn'] = 90
+DURATION['2h'] = 120
+
+
+def error(num : int = 1) -> None:
+    print('Syntax: autostop <IP> <duration>')
+    print('        IP       : Adresse IP de la machine cible')
+    print('                   ou nom associé')
+    print('        duration : Temps autorisé avant extinction')
+    print('                   de la machine (en minutes)')
+
+    if num == 2:
+        print('<duration> doit être une valeur entière')
+    elif num == 3:
+        print('<IP> n\'a pas été trouvé dans la liste des IP valides:')
+        for host in HOSTNAMES:
+            print('    {} : {}'.format(host, HOSTNAMES[host]))
+
+    sys.exit(num)
+
+
+def has_no_parameters() -> bool:
+    return len(sys.argv) == 1
+
+
+def get_parameters_from_cmdline() -> Tuple[str, int]:
+    if len(sys.argv) != 3:
+        error()
+    
+    ip = sys.argv[1]
+    try:
+        duration = int(sys.argv[2])
+    except:
+        error(2)
+
+    if ip not in IP:
+        if ip in HOSTNAMES:
+            ip = HOSTNAMES[ip]
+        else:
+            error(3)
+
+    return (ip, duration)
+
+
+def get_parameters_from_cli() -> Tuple[str, int]:
+    widget = [
+        {
+            'type': 'list',
+            'name': 'host',
+            'message': 'Quelle est la machine cible :',
+            'choices': list(HOSTNAMES.keys())
+        },
+        {
+            'type': 'list',
+            'name': 'duration',
+            'message': 'Quelle est la durée :',
+            'choices': list(DURATION.keys())
+        }
+    ]
+    result = prompt(widget)
+
+    ip = HOSTNAMES[result['host']]
+    duration = DURATION[result['duration']]
+
+    return (ip, duration)
+
+
+def set_server_duration(ip : str, duration : int) -> None:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        print('Connecting to {} port {}'.format(ip, PORT))
+
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((ip, PORT))
+            sock.sendall(str(duration).encode())
+        except:
+            print('ERROR : Server not responding')
+            sys.exit(3)
+
+
+if __name__ == '__main__':
+    if has_no_parameters():
+        ip, duration = get_parameters_from_cli()
+    else:
+        ip, duration = get_parameters_from_cmdline()
+
+    print()
+    print('Contact du serveur pour arrêter {} dans {} mn'.format(ip, duration))
+    set_server_duration(ip, duration)
